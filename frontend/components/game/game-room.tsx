@@ -64,6 +64,7 @@ export function GameRoom() {
   const completedTaskIds = useGameStore((s) => s.completedTaskIds)
   const addObservation = useGameStore((s) => s.addObservation)
   const recordHesitation = useGameStore((s) => s.recordHesitation)
+  const isTaskAccessible = useGameStore((s) => s.isTaskAccessible)
   
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 1280, height: 720 })
@@ -93,10 +94,13 @@ export function GameRoom() {
 
   const getNearbyObject = useCallback(() => {
     const INTERACTION_DISTANCE = Math.min(dimensions.width, dimensions.height) * 0.12
+    const scaledPlayerX = (playerPosition.x / 800) * dimensions.width
+    const scaledPlayerY = (playerPosition.y / 600) * dimensions.height
+    
     return OBJECTS.find(obj => {
       const pos = getObjectPosition(obj)
-      const dx = playerPosition.x - pos.x
-      const dy = playerPosition.y - pos.y
+      const dx = scaledPlayerX - pos.x
+      const dy = scaledPlayerY - pos.y
       return Math.sqrt(dx * dx + dy * dy) < INTERACTION_DISTANCE
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,8 +138,15 @@ export function GameRoom() {
       }
       
       if (key === 'e' && nearbyObject && !completedTaskIds.includes(nearbyObject.id)) {
-        startTask(nearbyObject.id)
-        addObservation(`Initiating ${nearbyObject.name} interface`, 'neutral')
+        if (isTaskAccessible(nearbyObject.id)) {
+          startTask(nearbyObject.id)
+          addObservation(`Initiating ${nearbyObject.name} interface`, 'neutral')
+        } else {
+          // Find the name of the next required task
+          const nextTaskId = useGameStore.getState().getNextTaskId();
+          const nextTaskName = OBJECTS.find(o => o.id === nextTaskId)?.name || 'Unknown Task';
+          addObservation(`ACCESS DENIED: You must complete ${nextTaskName} first`, 'suspicious')
+        }
       }
     }
 
@@ -202,8 +213,20 @@ export function GameRoom() {
         return (
           <div
             key={obj.id}
+            onClick={() => {
+              if (activeTask || isCompleted) return;
+              if (isTaskAccessible(obj.id)) {
+                startTask(obj.id)
+                addObservation(`Initiating ${obj.name} interface via direct access`, 'neutral')
+              } else {
+                const nextTaskId = useGameStore.getState().getNextTaskId();
+                const nextTaskName = OBJECTS.find(o => o.id === nextTaskId)?.name || 'Unknown Task';
+                addObservation(`ACCESS DENIED: You must complete ${nextTaskName} first`, 'suspicious')
+              }
+            }}
             className={cn(
               'absolute flex flex-col items-center justify-center transition-all duration-300 -translate-x-1/2 -translate-y-1/2',
+              !isCompleted && isTaskAccessible(obj.id) ? 'cursor-pointer' : '',
               isCompleted 
                 ? 'opacity-40' 
                 : isNearby 
@@ -282,8 +305,17 @@ export function GameRoom() {
                 boxShadow: `0 0 25px var(--${obj.color})40`,
                 zIndex: 50
               }}>
-                <span className="mr-1.5 font-bold">[E]</span>
-                {obj.description}
+                {isTaskAccessible(obj.id) ? (
+                  <>
+                    <span className="mr-1.5 font-bold">[E]</span>
+                    {obj.description}
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-1.5 font-bold text-red-500">[LOCKED]</span>
+                    <span className="text-muted-foreground">OUT OF SEQUENCE</span>
+                  </>
+                )}
               </div>
             )}
           </div>
