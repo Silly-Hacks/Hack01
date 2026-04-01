@@ -339,5 +339,22 @@ export const useGameStore = create<GameState>((set, get) => ({
       score,
       analysis: analysis.length > 0 ? analysis : ['Behavior analysis inconclusive']
     }
-  }
+  },
+  
+  getNextTaskId: () => {
+    const state = get()
+    for (const task of TASK_SEQUENCE) {
+      if (!state.completedTaskIds.includes(task)) {
+        return task
+      }
+    }
+    return null
+  },
+  
+  isTaskAccessible: (taskId) => {
+    const state = get()
+    return state.getNextTaskId() === taskId
+  },
+  
+  setMusicPlaying: (playing) => set({ isMusicPlaying: playing })
 }))

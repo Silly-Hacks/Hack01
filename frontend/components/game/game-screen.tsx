@@ -22,6 +22,9 @@ export function GameScreen() {
 
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden bg-background">
+      {/* Background audio track playing on a loop */}
+      <audio src="/background-track.mp3" autoPlay loop />
+      
       {/* Full-screen game room with background */}
       <GameRoom />
       
